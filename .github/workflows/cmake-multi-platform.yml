@@ -25,7 +25,13 @@ jobs:
       matrix:
         os: [macos-latest]
         build_type: [Release, Debug]
-        c_compiler: [gcc, clang]
+        include:
+          - os: macos-latest
+            c_compiler: gcc
+            cpp_compiler: g++
+          - os: macos-latest
+            c_compiler: clang
+            cpp_compiler: clang++
 
     steps:
     - uses: actions/checkout@v4

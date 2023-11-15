@@ -1,0 +1,105 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+	  {
+		"label": "build",
+		"type": "shell",
+		"command": "cmake",
+		"args": [
+		  "--build",
+		  "${workspaceFolder}/build"
+		],
+		"group": {
+		  "kind": "build",
+		  "isDefault": true
+		},
+		"presentation": {
+		  "reveal": "always"
+		},
+		"problemMatcher": "$msCompile",
+		"options": {
+		  "cwd": "${workspaceFolder}"
+		}
+	  },
+	  {
+		"label": "clean",
+		"type": "shell",
+		"command": "cmake",
+		"args": [
+		  "--build",
+		  "${workspaceFolder}/build",
+		  "--target",
+		  "clean"
+		],
+		"group": {
+		  "kind": "build",
+		  "isDefault": true
+		},
+		"presentation": {
+		  "reveal": "always"
+		},
+		"options": {
+		  "cwd": "${workspaceFolder}"
+		}
+	  },
+	  {
+		"label": "configure",
+		"type": "shell",
+		"command": "cmake",
+		"args": [
+			"-B${workspaceFolder}/build",
+        	"-H${workspaceFolder}"
+		],
+		"group": {
+		  "kind": "build",
+		  "isDefault": true
+		},
+		"presentation": {
+		  "reveal": "always"
+		},
+		"options": {
+		  "cwd": "${workspaceFolder}"
+		}
+	  },
+	  {
+		"label": "configure Debug",
+		"type": "shell",
+		"command": "cmake",
+		"args": [
+			"-B${workspaceFolder}/build",
+        	"-H${workspaceFolder}",
+			"-DCMAKE_BUILD_TYPE=Debug"
+		],
+		"group": {
+		  "kind": "build",
+		  "isDefault": true
+		},
+		"presentation": {
+		  "reveal": "always"
+		},
+		"options": {
+		  "cwd": "${workspaceFolder}"
+		}
+	  },
+	  {
+		"label": "runTests",
+		"type": "shell",
+		"command": "ctest",
+		"args": [
+			"--test-dir",
+			"${workspaceFolder}/build"
+		],
+		"group": {
+		  "kind": "build",
+		  "isDefault": true
+		},
+		"presentation": {
+		  "reveal": "always"
+		},
+		"options": {
+		  "cwd": "${workspaceFolder}"
+		}
+	  }
+	]
+  }
+  

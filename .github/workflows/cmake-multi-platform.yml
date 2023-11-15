@@ -25,6 +25,7 @@ jobs:
       matrix:
         os: [macos-latest]
         build_type: [Release, Debug]
+        c_compiler: [gcc, clang]
         include:
           - os: macos-latest
             c_compiler: gcc

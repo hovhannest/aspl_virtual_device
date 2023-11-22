@@ -8,48 +8,116 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(cmake/cpm.cmake)
 
-if (CMAKE_SYSTEM_NAME MATCHES "Windows")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
-endif()
+CPMAddPackage(
+    NAME aspl
+    GITHUB_REPOSITORY hovhannest/libASPL
+    GIT_TAG v3.0.0_1
+    VERSION 3.0.0
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/aspl
+)
 
-# Option to enable testing
-option(ENABLE_TESTING "Enable testing" ON)
-
-# Option to specify the GTest installation directory
-set(GTEST_INSTALL_DIR "" CACHE PATH "Path to Google Test installation directory")
-
-if (ENABLE_TESTING)
-    enable_testing()
-
-    CPMAddPackage(
-        NAME googletest
-        GITHUB_REPOSITORY google/googletest
-        GIT_TAG release-1.12.1
-        VERSION 1.12.1
-        OPTIONS "INSTALL_GTEST OFF" "gtest_force_shared_crt"
-    )
-
-    add_subdirectory(test) # Include the test subdirectory
-endif()
-
-# Add an executable for the main application
-add_executable(hello_world src/main.cpp)
-
-# Add a function library
-add_library(my_functions src/foo.cpp)
-
-# treat all warnings as errors
-if (MSVC)
-    target_compile_options(hello_world PRIVATE /Wall /WX /wd4668 /wd4711 /wd4710)
-    target_compile_options(my_functions PRIVATE /Wall /WX )
+# set to non-empty string to enable code signing
+if(DEFINED ENV{CODESIGN_ID})
+    set(CODESIGN_ID $ENV{CODESIGN_ID} CACHE STRING "Codesign ID")
 else()
-    target_compile_options(hello_world PRIVATE -Wall -Wextra -Wpedantic -Werror)
-    target_compile_options(my_functions PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    set(CODESIGN_ID "" CACHE STRING "Codesign ID")
 endif()
 
-# Include directories for headers
-target_include_directories(my_functions PUBLIC include)
+set(DRIVER_NAME "HovtDevice")
+set(DRIVER_VERSION "1.0.0")
+set(DRIVER_COPYRIGHT "Copyright (c) Hovhannes Tsakanyan")
+set(DRIVER_IDENTIFIER "sinewavedevice.examples.hovt")
+set(DRIVER_ENTRYPOINT "HovtEntryPoint")
 
-# Link the executable with the function library
-target_link_libraries(hello_world my_functions)
+# report configuration to console
+message(STATUS "Driver name - ${DRIVER_NAME}")
+message(STATUS "Driver version - ${DRIVER_VERSION}")
+message(STATUS "Driver copyright - ${DRIVER_COPYRIGHT}")
+message(STATUS "Driver identifier - ${DRIVER_IDENTIFIER}")
+message(STATUS "Driver codesign ID - ${CODESIGN_ID}")
+
+# we use MODULE to create .so library instead of .dylib library; .so files are
+# also known as Mach-O loadable bundles (not to be confused with macOS bundle
+# directory, which we create below)
+# see:
+#  - https://cmake.org/cmake/help/latest/command/add_library.html
+#  - https://stackoverflow.com/a/2339910/3169754
+add_library(${DRIVER_NAME} MODULE
+  "src/main.cpp"
+)
+
+target_link_libraries(${DRIVER_NAME}
+  PRIVATE libASPL
+)
+
+# add CoreFoundation dependency
+find_library(LIB_CoreFoundation CoreFoundation REQUIRED)
+target_link_libraries(${DRIVER_NAME}
+  PRIVATE ${LIB_CoreFoundation}
+)
+
+# here we adjust properties of our shared library and ask CMake to pack it into
+# macOS bundle directory
+#
+# we set OUTPUT_NAME to be "${DRIVER_NAME}"
+# we set PREFIX to "" to remove "lib" prefix
+# we set SUFFIX to "" to remove ".so" suffix
+# resulting name of the shared library will be just "${DRIVER_NAME}"
+#
+# we set MACOSX_BUNDLE to "ON" and BUNDLE to "true" to instruct CMake
+# to pack our shared library into macOS bundle directory (Finder may display that
+# directory as a single opaque item)
+#
+# we set MACOSX_BUNDLE_BUNDLE_NAME to "${DRIVER_NAME}" and
+# BUNDLE_EXTENSION to "driver", so that the resulting directory name
+# will be "${DRIVER_NAME}.driver"
+#
+# we set MACOSX_BUNDLE_INFO_PLIST to the path of Info.plist.in template, which will be
+# used by CMake to generate resulting Info.plist; CMake will substitute variables in
+# template with CMake vars like MACOSX_BUNDLE_*
+#
+# the bundle directory will contain our shared library, which is a plugin for audio
+# server, and "Info.plist" file, which is meta-information for the plugin, and
+# optionally code signature
+#
+# $ tree build/Example/${DRIVER_NAME}.driver
+# `-- Contents
+#     |-- Info.plist
+#     |-- MacOS
+#     |   `-- ${DRIVER_NAME}
+#     `-- _CodeSignature
+#         `-- CodeResources
+#
+# the user can install the bundle directory into /Library/Audio/Plug-Ins/HAL; on start,
+# audio server will find it, read Info.plist, load shared library into its address
+# space, and invoke entry point function (see above) to construct our plugin; it will
+# then use the plugin to create virtual audio device
+set_target_properties(${DRIVER_NAME} PROPERTIES
+  OUTPUT_NAME "${DRIVER_NAME}"
+  BUNDLE true
+  BUNDLE_EXTENSION "driver"
+  PREFIX ""
+  SUFFIX ""
+  MACOSX_BUNDLE ON
+  MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/Info.plist.in"
+  MACOSX_BUNDLE_BUNDLE_NAME "${DRIVER_NAME}"
+  MACOSX_BUNDLE_BUNDLE_VERSION "${DRIVER_VERSION}"
+  MACOSX_BUNDLE_COPYRIGHT "${DRIVER_COPYRIGHT}"
+  MACOSX_BUNDLE_GUI_IDENTIFIER "${DRIVER_IDENTIFIER}"
+  MACOSX_BUNDLE_SHORT_VERSION_STRING "${DRIVER_VERSION}"
+)
+
+# sign the bundle directory
+# this will add _CodeSignature subdirectory to the bundle
+if(NOT CODESIGN_ID STREQUAL "")
+  add_custom_command(
+    TARGET ${DRIVER_NAME}
+    POST_BUILD
+    COMMENT
+      "Signing ${DRIVER_NAME}.driver with ID ${CODESIGN_ID}"
+    VERBATIM
+    COMMAND
+      codesign --force -s "${CODESIGN_ID}"
+        "${CMAKE_CURRENT_BINARY_DIR}/${DRIVER_NAME}.driver"
+    )
+endif()

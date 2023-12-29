@@ -6,15 +6,10 @@
     "configurations": [
         {
             "name": "Debug",
-            "type": "cppdbg",
-            "request": "launch",
-            "MIMode": "lldb",
-            "program": "${workspaceRoot}/build/hello_world",
-            "args": [],
-            "stopAtEntry": false,
-            "environment": [],
-            "cwd": "${workspaceRoot}",
-            "preLaunchTask": "build"
+            "type": "lldb",
+            "request": "attach",
+            "program": "/Library/Audio/Plug-Ins/HAL/HovtDevice.driver/Contents/MacOS/HovtDevice",
+            "pid": 77098
         }
     ]
 }

@@ -20,15 +20,15 @@ std::shared_ptr<aspl::Driver> CreateExampleDriver()
     aspl::DeviceParameters deviceParams;
     deviceParams.Name = "Hovt Device";
     deviceParams.SampleRate = 44100;
-    deviceParams.ChannelCount = 4;
+    deviceParams.ChannelCount = 2;
 
     auto device = std::make_shared<aspl::Device>(context, deviceParams);
-
+    device->SetAvailableSampleRatesAsync({});
 
     aspl::StreamParameters params;
 
     params.Direction = aspl::Direction::Input;
-    params.Format.mSampleRate = device->GetNominalSampleRate();
+    params.Format.mSampleRate = 48000;
     params.Format.mChannelsPerFrame = device->GetPreferredChannelCount();
     params.Format.mBytesPerFrame =
         params.Format.mChannelsPerFrame * (params.Format.mBitsPerChannel / 8);
@@ -36,12 +36,13 @@ std::shared_ptr<aspl::Driver> CreateExampleDriver()
     params.Format.mBytesPerPacket = params.Format.mBytesPerFrame;
     params.StartingChannel = 1;
     
-    device->AddStreamWithControlsAsync(params);
+    auto stream = device->AddStreamWithControlsAsync(params);
+    stream->SetAvailablePhysicalFormatsAsync({});
 
     params.Direction = aspl::Direction::Output;
-    params.StartingChannel = 3;
 
-    device->AddStreamWithControlsAsync(params);
+    stream = device->AddStreamWithControlsAsync(params);
+    stream->SetAvailablePhysicalFormatsAsync({});
 
     // Create plugin object, the root of the object hierarchy, and add
     // our device to it.
@@ -75,3 +76,5 @@ extern "C" void* HovtEntryPoint(CFAllocatorRef allocator, CFUUIDRef typeUUID)
 
     return driver->GetReference();
 }
+
+// sudo killall coreaudiod
